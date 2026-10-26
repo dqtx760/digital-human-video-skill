@@ -9,8 +9,8 @@ description: 数字人视频生成——用一张照片、一段声音样本和�
 
 输入三样东西——一份文案、一张形象照、一段声音样本——产出一条本人出镜的竖屏口播视频：
 克隆本人的声音念文案，用 Seedance 2.0-mini 让照片中的人物按音频对口型，配 Suno 生成的 BGM，
-烧录 whisperx 转写字幕，最后 ffmpeg 合成。全程只调用文档化的公开 API，任何能跑 Python 和
-ffmpeg 的智能体都能按本技能执行，不依赖特定客户端。
+烧录带关键词高亮与卡拉OK 推进的富样式字幕，最后 ffmpeg 合成。全程只调用文档化的公开 API，
+任何能跑 Python 和 ffmpeg 的智能体都能按本技能执行，不依赖特定客户端。
 
 整条流水线的每个参数、每个坑都在真实项目中验证过（见 references/），不是纸面方案。
 
@@ -75,11 +75,34 @@ ffmpeg 的智能体都能按本技能执行，不依赖特定客户端。
    sidechaincompress 侧链闪避，混进成片。
 4. 用户试听选一首。音乐审美是主观的，自动化到「出合格候选」为止，选曲留给人。
 
-### Stage D 字幕（whisperx，本地免费）
+### Stage D 字幕（ASS 富样式，本地零成本）
 
-用 whisperx small 模型对成片音轨转写并按时间戳烧录。环境与离线跑法见
-references/pitfalls.md 的字幕段。用户用剪映等工具配字幕时，本阶段可跳过，但要在
-交付说明里讲清楚。
+不依赖任何在线服务，用 ASS/libass 实现一套接近专业剪辑软件的字幕效果。`avatar_caption.py`
+的六种能力（每一项都逐帧抽像素验证过，不是纸面说明）：
+
+| 能力 | 怎么配 | 说明 |
+|---|---|---|
+| Cue 分组 | script.md 台词里写 `||` | 一句长台词切成两条字幕，各自独立计时 |
+| 关键词高亮 | `spec.keywords` | 例如 `AI`→青色、`5000人`→金色，跨中西文的词整体命中 |
+| 卡拉OK 逐字推进 | `spec.karaoke.enabled` | 读到哪个字亮到哪个字，读过的不回退 |
+| Dual Text | `spec.dual_text` | 说「十块」画面显示「10块」，口语与书面分离 |
+| 时间窗换样式 | `spec.emphasis` | 指定 3–6 秒用更大字号/别的颜色，做重点句 |
+| 中英双轨 + 排版动效 | `spec.points` | 中文主轨 + 英文要点轨，带 `\fad` 淡入、`\t` 缩放弹出 |
+
+```bash
+python scripts/avatar_caption.py spec    # 写出 output/caption-spec.json 模板
+python scripts/avatar_caption.py all     # 生成 ASS + 烧录成 digital-human-captioned.mp4
+```
+
+字幕文案来源优先级：`--srt` 指定 > whisperx 的 `output/digital-human.srt` >
+`voice/qc.json` 时长 + script.md 原文。**有台词原文时优先用原文**（加 `--prefer-script`），
+它比 ASR 转写准，且不需要装 whisperx。
+
+两个必须知道的 libass 约定（都踩过坑，见 references/pitfalls.md）：卡拉OK 的未读色是
+SecondaryColour、读过切 PrimaryColour 并保持；`\k` 的单位是厘秒且**总和必须等于该条
+Cue 的时长**，写成百分比会让卡拉OK 在一秒内跑完。
+
+用户用剪映等工具配字幕时，本阶段可跳过，但要在交付说明里讲清楚。
 
 ### Stage E 合成与质检
 
@@ -113,7 +136,16 @@ export APIMART_API_KEY=... FISH_API_KEY=...   # 或让脚本提示时输入
 python scripts/avatar_voice.py all     # Stage A 全流程
 python scripts/avatar_video.py all     # Stage B 全流程
 python scripts/avatar_bgm.py all       # Stage C
+python scripts/avatar_caption.py all   # Stage D（不需要 key）
 ```
+
+| 脚本 | 阶段 | 是否需要 key | 作用 |
+|---|---|---|---|
+| avatar_voice.py | A | Fish Audio | 声音克隆、逐句 TTS、修 WAV 头、质检 |
+| avatar_video.py | B | APIMART | 传图、托管音频、提交口型视频、轮询下载 |
+| avatar_bgm.py | C | APIMART（generate 要，mix 不要） | Suno 出 BGM 候选、侧链闪避混音 |
+| avatar_caption.py | D | 否 | 富样式字幕生成与烧录 |
+| avatar_compose.py | E | 否 | 拼接、缩放、转写、终检 |
 
 脚本从当前目录读 script.md 和 assets/，产出到 output/，状态存 output/state.json，
 中断后重跑同一命令即续跑。每个脚本支持 --help 查看子命令。

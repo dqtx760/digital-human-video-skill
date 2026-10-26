@@ -118,9 +118,11 @@ def read_sentences():
     return [s.strip() for s in found]
 
 
-def ffmpeg(args, label='ffmpeg'):
+def ffmpeg(args, label='ffmpeg', cwd=None):
+    """cwd 用来配合过滤器里的相对路径：Windows 下 subtitles= 遇到盘符冒号容易解析失败，
+    切到项目根目录后只传相对路径最稳。"""
     result = subprocess.run(['ffmpeg', '-hide_banner', '-y'] + args,
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, cwd=cwd)
     if result.returncode:
         stop(label + ' 失败: ' + clean(result.stderr[-800:]))
     return result

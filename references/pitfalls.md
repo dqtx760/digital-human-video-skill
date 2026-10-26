@@ -89,3 +89,43 @@ faster-whisper 转写确认内容没错、频谱没伪影——内容是好的�
 
 curl: (23) client returned ERROR on write of N bytes。改用 Python urllib.request
 下载落盘更稳。scripts 里的下载都用 requests 流式写文件，已验证可靠。
+
+## 11. ASS 卡拉OK 的颜色语义是反直觉的
+
+**现象**：按「Primary=正文色、Secondary=高亮色」写样式，卡拉OK 全是白的，或者整行
+一开始就是高亮色、看不出推进。
+
+**根因**：libass 的 `\k` 约定是——**未读部分用 SecondaryColour，读到的部分切到
+PrimaryColour 并保持**（trail 模式）。直觉上「Primary 是主色」刚好写反了。
+
+**修法**：卡拉OK 开启时 Primary 放高亮色、Secondary 放正文底色；不开卡拉OK 时两者
+都放正文色。scripts/avatar_caption.py 已按此实现。
+
+## 12. `\k` 总和必须等于 Cue 时长
+
+**现象**：卡拉OK 一秒内就跑完，或者整行提前全部点亮。
+
+**根因**：`\k` 的单位是**厘秒**（1/100 秒），不是百分比。如果按「占比」写成了
+加起来等于 100 的数，那条 Cue 的总时长就被当成 1 秒。
+
+**修法**：按字数比例把 Cue 时长分配成厘秒：
+`centis = round(100 * cue_duration * len(unit) / total_chars)`。
+
+## 13. 样式继承会覆盖关键词高亮
+
+**现象**：给某段加了 emphasis（换大字号/换色）后，关键词高亮失效，整行变成一个颜色。
+
+**根因**：emphasis 生成的是独立 Style，它的 PrimaryColour 直接覆盖行内 `{\c...}` 的
+效果。
+
+**修法**：卡拉OK 开启时，Emph 样式的 PrimaryColour 也要设成高亮色，SecondaryColour
+才放 emphasis 自己的颜色。
+
+## 14. Windows 上 ffmpeg subtitles 过滤器不认盘符路径
+
+**现象**：`Unable to parse option value "C\:/path/captions.ass" as image size`。
+
+**根因**：subtitles 过滤器把路径里的冒号当成了参数分隔符。
+
+**修法**：传**相对路径**并给 ffmpeg 指定 cwd，例如 `subtitles=output/captions.ass` +
+`cwd=项目根目录`。avatar_common.ffmpeg() 已支持 cwd 参数。
