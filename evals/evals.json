@@ -1,0 +1,29 @@
+{
+  "skill_name": "digital-human-video",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我有一段文案想做成自己出镜的口播视频，文案在 script.md 里，照片和声音样本都在 assets 文件夹。帮我做一条数字人视频，声音要像我本人。",
+      "expected_output": "按五阶段流程执行：Stage A 用 Fish Audio 克隆声音并逐句 TTS（修复 WAV 头、QC 音量不碰 atempo）；Stage B 上传形象图、托管音频、以 generate_audio=False 提交 Seedance 2.0-mini 并轮询下载；Stage E 用 TTS 人声合成 1080x1920 成片并 QC；BGM 先写 brief 生成候选再请用户选曲。全程密钥走环境变量不落盘，产出 output/digital-human.mp4。",
+      "files": ["script.md", "assets/photo.png", "assets/voice-sample.m4a"]
+    },
+    {
+      "id": 2,
+      "prompt": "这条已经合成好的视频（output/digital-human.mp4）帮我配个 BGM，风格要贴合文案——文案讲的是 AI 观点，冷静但有力量。",
+      "expected_output": "先读文案写音乐 brief（风格/情绪/BPM/能量曲线/避免项六维度）落到 output/bgm/brief.md，再走 Suno instrumental 纯音乐模式出两首候选，最后用 sidechaincompress 侧链闪避混音（BGM 压至人声下约 -16dB、头尾淡入淡出），请用户试听选曲，不擅自替用户决定。",
+      "files": ["output/digital-human.mp4", "script.md"]
+    },
+    {
+      "id": 3,
+      "prompt": "视频生成完了，但我听着人声从第 10 秒开始不对劲，拖拖沓沓的像变速了，你排查一下。",
+      "expected_output": "按 pitfalls 第 7 条定位：用户说的时间点对齐某句音频起点；faster-whisper 转写确认内容完整、频谱无伪影后，判定为 atempo 后处理拉伸所致；修复方向是 Fish 原生 prosody.speed 重录该句并重跑 QC，然后重新提交对应视频片段（换音频必须重生成视频，不换轨冒充同步），最后重新合成。不得用再次拉伸的方式掩盖问题。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "我想出镜但我没有合适的照片，能不能先用 AI 生成一个我的形象？要竖版的。",
+      "expected_output": "走 api-reference 2.2：APIMART gpt-image-2 文生图，9:16 2K，约 0.1 元/张；生成后必须请用户确认形象（脸像不像、构图对不对）再进视频阶段；确认后的图经 /v1/uploads/images 上传复用，不重复传。不未确认形象就提交视频。",
+      "files": []
+    }
+  ]
+}
