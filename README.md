@@ -56,6 +56,10 @@ export APIMART_API_KEY=你的APIMART密钥
 
 方式二：如果客户端支持，直接安装仓库里的 `Hypipit 数字人视频生成.skill` 包。
 
+**装这一个就够了，不需要安装 Hypit。** 本技能是纯 API 直通实现：不调用 Hypit 命令行，不依赖
+Hypit Runtime 或它的 SVML/SVS/SVRun 编排体系，只需要上面的 Python 依赖和两个 Key。
+文件夹名里的 Hypipit 只是仓库归属，不是运行依赖——详见下面「和 Hypit 的关系」。
+
 ---
 
 ## 使用示例
@@ -172,6 +176,24 @@ BGM 会裁到成片长度、头尾淡入淡出、压到人声下约 -16dB，并�
 **声音听起来拖沓**：绝不要为了凑时长拉伸音频。用 TTS 原生语速参数重录，或接受自然时长。
 
 **视频嘴型和声音不同步**：换了音频必须重新生成视频，直接换音轨不等于同步。
+
+---
+
+## 和 Hypit 的关系
+
+**做数字人口播视频，不需要 Hypit。** 两者是两套独立实现：
+
+| | 本技能 | Hypit |
+|---|---|---|
+| 定位 | 只做一件事：本人出镜的口播视频 | 通用视频创作系统 |
+| 实现 | 直接调 Fish Audio、APIMART 公开 API + 本地 ffmpeg | 自有编排语言（SVML/SVS/SVRun）+ Runtime 执行层 |
+| 依赖 | Python、requests、ffmpeg、两个 Key | 需要安装 Hypit CLI 与 Runtime |
+| 字幕 | whisperx 转写，样式朴素 | 支持关键词高亮、中英双轨、排版动效（更强） |
+
+这套流水线最初是在 Hypit 项目里跑通的，封装时把「API 直通」这条路单独抽了出来，因此成品
+与 Hypit 零耦合（全目录检索无 hypit/SVML/HypiHub 引用，脚本唯一的外部命令是 ffmpeg）。
+
+需要精细排版字幕时，Hypit 更合适；只想快速出一条本人出镜的口播视频，装本技能一个就够。
 
 ---
 
